@@ -1,9 +1,9 @@
 import { html, LitElement } from "lit-element";
 import { styleMap } from "lit-html/directives/style-map";
-import Styles from "./styles.scss";
+import Styles from "./styles/index.scss";
 import { repeat } from "lit-html/directives/repeat";
 import scaleData from "../demoData/scaleData";
-import taskData from "../demoData/taskData";
+import tasks from "../demoData/taskData";
 import config from "../demoData/config";
 import taskPositionMap from "../demoData/taskPositionMap";
 import columns from "../demoData/columns";
@@ -11,12 +11,13 @@ import { getScrollWindow, getEndPosition } from "./helpers/WindowManager";
 import {
   OVERSCAN_COUNT,
   TIMELINE_SYNC_ELEMENTS,
-  GRID_SYNC_ELEMENTS
+  GRID_SYNC_ELEMENTS,
+  CELL_EXPAND_OR_COLLAPSE
 } from "./constants";
 import ScrollSyncManager from "./helpers/ScrollSyncManager";
 import {
-  getVisibleHeight,
-  getVisibleWidth,
+  getAvaiableHeight,
+  getAvailableWidth,
   querySelectorAll
 } from "./helpers/ElementManager";
 import getColumns from "./model/columns";
@@ -29,26 +30,47 @@ class GanttElement extends LitElement {
 
   static get properties() {
     return {
-      scaleData: {
+      config: {
+        type: Object
+      },
+      columns: {
         type: Array
       },
-      scrollLeft: {
-        type: Number
+      scaleData: {
+        type: Object
       },
-      visibleWidth: {
+      viewportScaleData: {
+        type: Object
+      },
+      scrollLeft: {
         type: Number
       },
       scrollTop: {
         type: Number
       },
-      visibleHeight: {
+      availableHeight: {
         type: Number
       },
-      taskData: {
+      availableWidth: {
+        type: Number
+      },
+      viewportTasks: {
         type: Array
       },
-      columns: {
+      flatList: {
         type: Array
+      },
+      totalColumnsWidth: {
+        type: Number
+      },
+      totalTimelineWidth: {
+        type: Number
+      },
+      totalBodyHeight: {
+        type: Number
+      },
+      minTopScaleWidth: {
+        type: Number
       }
     };
   }
@@ -57,25 +79,23 @@ class GanttElement extends LitElement {
     super();
 
     this.config = config;
-    this.scaleData = {
+    this.viewportScaleData = {
       top: [],
       bottom: []
     };
-    this.timelineSync = [];
-    this.scaleHeight = 25;
     this.bottomScaleWidth = 50;
     this.scrollLeft = 0;
     this.scrollTop = 0;
-    this.visibleWidth = 0;
-    this.totalHeight = taskData.length * this.config.rowHeight;
-    this.taskPositionMap = taskPositionMap;
-    this.taskData = [];
+    this.availableWidth = 0;
+    this.availableHeight = 0;
+    this.totalTimelineWidth = 0;
+    this.totalBodyHeight = 0;
+    this.viewportTasks = [];
     this.columns = getColumns(columns);
-    this.maxGridWidth = this.getMaxColumnsWidth();
-
-    const tree = new Tree(taskData);
-
-    this.flatList = tree.getFlatList();
+    this.taskPositionMap = taskPositionMap;
+    this.scaleData = scaleData;
+    this.totalColumnsWidth = this.getTotalColumnsWidth();
+    this.tree = new Tree(tasks);
   }
 
   get gridHeaderTemplate() {
@@ -104,15 +124,21 @@ class GanttElement extends LitElement {
   }
 
   get timelineHeaderTemplate() {
+    const scaleHeight = this.config.headerHeight / 2;
+
     return html`
-      <section class="flexible-container hide-scroll" id="timeline-header">
+      <section
+        class="flexible-container hide-scroll"
+        id="timeline-header"
+        @scroll="${this.handleTimelineHorizontalScroll}"
+      >
         <div
           class="scroll-area scale-area"
-          style=${styleMap(this.hScrollAreaStyles)}
+          style=${styleMap(this.timelineWidthStyles)}
         >
-          <div class="scale" style="height: ${this.scaleHeight}px">
+          <div class="scale" style="height: ${scaleHeight}px">
             ${repeat(
-              this.scaleData.top,
+              this.viewportScaleData.top,
               item => item.index,
               scale => {
                 return html`
@@ -127,9 +153,9 @@ class GanttElement extends LitElement {
               }
             )}
           </div>
-          <div class="scale" style="height: ${this.scaleHeight}px">
+          <div class="scale" style="height: ${scaleHeight}px">
             ${repeat(
-              this.scaleData.bottom,
+              this.viewportScaleData.bottom,
               item => item.index,
               scale => {
                 return html`
@@ -165,15 +191,18 @@ class GanttElement extends LitElement {
   get gridBodyTemplate() {
     return html`
       <section
-        class="fixed-container grid-body"
+        class="fixed-container grid-body hide-scroll"
         style="width: ${this.config.gridWidth}px; min-width: ${this.config
-          .gridWidth}px; height: ${this.totalHeight}px"
+          .gridWidth}px; height: ${this.totalBodyHeight}px"
         id="grid-body"
       >
-        <div class="grid-inner-scroller" style="width: ${this.maxGridWidth}px">
+        <div
+          class="grid-inner-scroller"
+          style="width: ${this.totalColumnsWidth}px"
+        >
           ${repeat(
-            this.taskData,
-            item => item.node.get("id"),
+            this.viewportTasks,
+            item => item.get("id"),
             taskNode => {
               return html`
                 <div
@@ -200,25 +229,25 @@ class GanttElement extends LitElement {
   get timelineBodyTemplate() {
     return html`
       <section
-            style="height: ${this.totalHeight}px"
-            class="body-main-container"
+            style="height: ${this.totalBodyHeight}px"
+            class="body-main-container hide-scroll"
             $
             id="timeline-body"
+            @scroll="${this.handleTimelineHorizontalScroll}"
           >
             <div class="body-main-wrapper" style=${styleMap(
-              this.hScrollAreaStyles
+              this.timelineWidthStyles
             )}>
               <div
                 class="scroll-area timeline-body"
-                style=${styleMap(this.hScrollAreaStyles)}
+                style=${styleMap(this.timelineWidthStyles)}
               >
                 <div class="area__bars timeline-layer">
                   ${repeat(
-                    this.taskData,
-                    item => item.node.get("id"),
+                    this.viewportTasks,
+                    item => item.get("id"),
                     taskNode => {
-                      const task = taskNode.node;
-                      const position = this.taskPositionMap[task.get("id")];
+                      const position = this.taskPositionMap[taskNode.get("id")];
 
                       return html`
                         <div
@@ -226,7 +255,7 @@ class GanttElement extends LitElement {
                           style="transform: translate(0px, ${taskNode.$index *
                             this.config.rowHeight}px); height: ${this.config
                             .rowHeight}px"
-                          data-index="${task.get("id")}"
+                          data-index="${taskNode.get("id")}"
                         >
                           <div
                             class="task__container"
@@ -238,15 +267,15 @@ class GanttElement extends LitElement {
                           >
                             <div class="task__wrapper">
                               <div
-                                class="task${task.get("type") === "parent"
+                                class="task${taskNode.get("type") === "parent"
                                   ? " task__parent"
-                                  : ""}${task.get("type") === "milestone"
+                                  : ""}${taskNode.get("type") === "milestone"
                                   ? " task__milestone"
                                   : ""}"
                               >
                                 <div
                                   class="task__progress"
-                                  style="width: ${task.get("percentDone")}%"
+                                  style="width: ${taskNode.get("percentDone")}%"
                                 ></div>
                               </div>
                             </div>
@@ -274,14 +303,14 @@ class GanttElement extends LitElement {
         >
           <div
             class="scroll-area"
-            style="width: ${this.maxGridWidth}px;min-width: ${this
-              .maxGridWidth}px;"
+            style="width: ${this.totalColumnsWidth}px;min-width: ${this
+              .totalColumnsWidth}px;"
           ></div>
         </section>
         <section class="flexible-container" id="timeline-virtual-scroller">
           <div
             class="scroll-area"
-            style=${styleMap(this.hScrollAreaStyles)}
+            style=${styleMap(this.timelineWidthStyles)}
           ></div>
         </section>
       </footer>
@@ -293,8 +322,8 @@ class GanttElement extends LitElement {
       <section class="body-container">
         <section class="inner-scroller" @scroll="${this.handleVerticalScroll}">
           ${this.gridBodyTemplate} ${this.timelineBodyTemplate}
-          ${this.virtualScrollTemplate}
         </section>
+        ${this.virtualScrollTemplate}
       </section>
     `;
   }
@@ -303,15 +332,32 @@ class GanttElement extends LitElement {
     return html`
       <div class="container">
         ${this.headerTemplate} ${this.bodyTemplate}
+        <div class="x-resizer" style="left: ${this.config.gridWidth}px"></div>
       </div>
     `;
   }
 
-  handleScroll(e) {
-    console.log("sasd");
+  getTotalBodyHeight() {
+    return this.flatList.length * this.config.rowHeight;
   }
 
-  getMaxColumnsWidth() {
+  getTotalTimelineWidth() {
+    return this.scaleData.bottom.length * this.bottomScaleWidth;
+  }
+
+  getMinTopScaleWidth() {
+    let min = Infinity;
+
+    this.scaleData.top.forEach(top => {
+      if (top.width < min) {
+        min = top.width;
+      }
+    });
+
+    return min;
+  }
+
+  getTotalColumnsWidth() {
     return this.columns.reduce((sum, column) => {
       sum += column.width;
 
@@ -323,13 +369,54 @@ class GanttElement extends LitElement {
     const indices = getScrollWindow({
       oldScroll: this.scrollTop,
       newScroll: e.target.scrollTop,
-      visibleArea: this.visibleHeight,
+      visibleArea: this.availableHeight,
       totalCount: this.flatList.length,
       unitWidth: this.config.rowHeight
     });
 
     this.scrollTop = e.target.scrollTop;
-    this.taskData = this.flatList.slice(indices.start, indices.end);
+    this.viewportTasks = this.flatList.slice(indices.start, indices.end);
+  }
+
+  handleTimelineHorizontalScroll(e) {
+    const topIndices = getScrollWindow({
+      oldScroll: this.scrollLeft,
+      newScroll: e.target.scrollLeft,
+      visibleArea: this.availableWidth,
+      totalCount: this.scaleData.top.length,
+      unitWidth: this.minTopScaleWidth
+    });
+    const bottomIndices = getScrollWindow({
+      oldScroll: this.scrollLeft,
+      newScroll: e.target.scrollLeft,
+      visibleArea: this.availableWidth,
+      totalCount: this.scaleData.bottom.length,
+      unitWidth: this.bottomScaleWidth
+    });
+
+    this.scrollLeft = e.target.scrollLeft;
+    this.viewportScaleData = {
+      top: this.scaleData.top.slice(topIndices.start, topIndices.end),
+      bottom: this.scaleData.bottom.slice(
+        bottomIndices.start,
+        bottomIndices.end
+      )
+    };
+  }
+
+  resetViewportTasks() {
+    this.flatList = this.tree.getFlatList();
+
+    this.viewportTasks = this.flatList.slice(
+      0,
+      getEndPosition({
+        visibleArea: this.availableHeight,
+        newScroll: this.scrollTop,
+        unitWidth: this.config.rowHeight
+      }) + OVERSCAN_COUNT
+    );
+
+    this.totalBodyHeight = this.getTotalBodyHeight();
   }
 
   firstUpdated() {
@@ -347,32 +434,53 @@ class GanttElement extends LitElement {
     new ScrollSyncManager(gridSyncElements);
 
     // Calculate available width of timeline and height of body container
-    this.visibleHeight = getVisibleHeight(this.shadowRoot, ".body-container");
-    this.visibleWidth = getVisibleWidth(
+    this.availableHeight = getAvaiableHeight(
+      this.shadowRoot,
+      ".body-container"
+    );
+    this.availableWidth = getAvailableWidth(
       this.shadowRoot,
       timelineSyncElements[0]
     );
 
-    // Calculate timescale data
-    this.scaleData = scaleData;
+    // Viewport task list
+    this.resetViewportTasks();
 
     // Total width of timeline
-    this.totalWidth = scaleData.bottom.length * this.bottomScaleWidth;
-    this.hScrollAreaStyles = {
-      width: `${this.totalWidth}px`,
-      minWidth: `${this.totalWidth}px`
-    };
-    console.log(this.flatList);
+    this.totalTimelineWidth = this.getTotalTimelineWidth();
 
-    // Viewport task list
-    this.taskData = this.flatList.slice(
-      0,
-      getEndPosition({
-        visibleArea: this.visibleHeight,
-        newScroll: this.scrollTop,
-        unitWidth: this.config.rowHeight
-      }) + OVERSCAN_COUNT
-    );
+    // Calculate timescale data
+    this.minTopScaleWidth = this.getMinTopScaleWidth();
+    this.viewportScaleData = {
+      top: this.scaleData.top.slice(
+        0,
+        getEndPosition({
+          visibleArea: this.availableWidth,
+          newScroll: this.scrollLeft,
+          unitWidth: this.minTopScaleWidth
+        }) + OVERSCAN_COUNT
+      ),
+      bottom: this.scaleData.bottom.slice(
+        0,
+        getEndPosition({
+          visibleArea: this.availableWidth,
+          newScroll: this.scrollLeft,
+          unitWidth: this.bottomScaleWidth
+        }) + OVERSCAN_COUNT
+      )
+    };
+
+    this.timelineWidthStyles = {
+      width: `${this.totalTimelineWidth}px`,
+      minWidth: `${this.totalTimelineWidth}px`
+    };
+
+    this.shadowRoot.addEventListener(CELL_EXPAND_OR_COLLAPSE, event => {
+      const taskNode = event.detail;
+
+      taskNode.$expanded = !taskNode.$expanded;
+      this.resetViewportTasks();
+    });
   }
 }
 

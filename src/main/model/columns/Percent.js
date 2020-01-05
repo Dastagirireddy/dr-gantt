@@ -7,17 +7,12 @@ export default class Percent extends Column {
   }
 
   render(taskNode) {
-    const task = taskNode.node;
-
     return html`
       <div class="grid__cell" style="width: ${this.width}px">
-        <div
-          style="background-color: #FAFAFA; width: 100%;height: 10px;display: flex;position: relative"
-        >
+        <div class="grid__cell__percent">
           <div
-            style="width: ${task.get(
-              "percentDone"
-            )}%;position:absolute;background-color: #0091EA;height: 100%"
+            class="grid__cell__progress"
+            style="width: ${taskNode.get("percentDone")}%;"
           ></div>
         </div>
       </div>

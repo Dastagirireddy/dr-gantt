@@ -1,68 +1,48 @@
 import Column from "./Column";
 import { html } from "lit-element";
-import { HEIRARCHY_PADDING } from "../../constants";
+import {
+  HEIRARCHY_PADDING,
+  ICON_TYPES,
+  CELL_EXPAND_OR_COLLAPSE
+} from "../../constants";
+import getIcon from "../../helpers/IconManager";
 
-const getRightArrow = () => {
-  return html`
-    <svg height="8" width="8">
-      <polygon points="0,0,0,8,8,4" style="fill:black;"></polygon>
-      Sorry, your browser does not support inline SVG.
-    </svg>
-  `;
-};
-
-const getDownArrow = () => {
-  return html`
-    <svg height="8" width="8">
-      <polygon points="0,0,4,8,8,0" style="fill:black;" />
-      Sorry, your browser does not support inline SVG.
-    </svg>
-  `;
-};
-
-const getCircle = () => {
-  return html`
-    <svg height="10" width="10">
-      <circle cx="4" cy="4" r="3" fill="black" />
-      Sorry, your browser does not support inline SVG.
-    </svg>
-  `;
-};
-
-const getIcon = icon => {
-  switch (icon) {
-    case "down": {
-      return getDownArrow();
-    }
-    case "right": {
-      return getRightArrow();
-    }
-    default: {
-      return getCircle();
-    }
-  }
-};
+const { ARROW_DOWN, ARROW_RIGHT, DOT } = ICON_TYPES;
 
 export default class Name extends Column {
   constructor(column) {
     super(column);
   }
 
-  render(taskNode) {
-    const task = taskNode.node;
+  onClick(event, taskNode) {
+    const ev = new CustomEvent(CELL_EXPAND_OR_COLLAPSE, {
+      detail: taskNode
+    });
 
+    event.target.getRootNode().dispatchEvent(ev);
+  }
+
+  render(taskNode) {
     return html`
       <div class="grid__cell" style="width: ${this.width}px">
         <div
-          style="width: 100%;height: 100%;display: flex; align-items: center; padding-left: ${taskNode.$level *
-            HEIRARCHY_PADDING}px"
+          class="grid__cell__inner"
+          style="padding-left: ${taskNode.$level * HEIRARCHY_PADDING}px"
         >
-          <span style="display: flex; width: 10px;margin-right: 3px">
-            ${task.get("type") === "task" || !task.expanded
-              ? getIcon("right")
-              : getIcon("down")}
+          <span
+            class="grid__cell__icon${taskNode.length === 0 ? " leaf" : ""}"
+            @click="${taskNode.length === 0
+              ? null
+              : e => this.onClick(e, taskNode)}"
+            tabindex="${taskNode.length === 0 ? -1 : 0}"
+          >
+            ${taskNode.get("type") !== "parent"
+              ? getIcon(DOT)
+              : !taskNode.$expanded
+              ? getIcon(ARROW_RIGHT)
+              : getIcon(ARROW_DOWN)}
           </span>
-          ${task.get(this.name)}
+          ${taskNode.get(this.name)}
         </div>
       </div>
     `;

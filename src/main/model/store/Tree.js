@@ -3,6 +3,7 @@ import Node from "./Node";
 export default class Tree {
   constructor(tasks = []) {
     this.head = new Node(null);
+    this.head.$expanded = true;
     this.nodeList = {};
 
     tasks.forEach(task => {
@@ -38,16 +39,17 @@ export default class Tree {
 
     const buildFlatList = currentNode => {
       for (let idx = 0; idx < currentNode.children.length; idx++) {
-        const node = currentNode.children[idx];
+        if (currentNode.$expanded) {
+          const node = currentNode.children[idx];
 
-        list.push({
-          $index: counter,
-          node,
-          $level: node.getLevel()
-        });
+          node.$index = counter;
+          node.$level = node.getLevel();
 
-        counter++;
-        buildFlatList(currentNode.children[idx]);
+          list.push(node);
+
+          counter++;
+          buildFlatList(currentNode.children[idx]);
+        }
       }
     };
 

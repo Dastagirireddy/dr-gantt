@@ -9,11 +9,9 @@ export default class Column {
   }
 
   render(taskNode) {
-    const task = taskNode.node;
-
     return html`
       <div class="grid__cell" style="width: ${this.width}px">
-        ${task.get(this.name)}
+        ${taskNode.get(this.name)}
       </div>
     `;
   }

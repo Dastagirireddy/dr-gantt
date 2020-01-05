@@ -1,10 +1,10 @@
 export default class ScrollSyncManager {
   constructor(elements) {
     this.elements = elements;
-    this.initScrollSync();
+    this.init();
   }
 
-  initScrollSync() {
+  init() {
     const self = this;
     let timeout;
 

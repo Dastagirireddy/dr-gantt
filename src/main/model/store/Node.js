@@ -4,6 +4,9 @@ export default class Node {
     this.length = 0;
     this.children = [];
     this.parent = null;
+    this.$index = null;
+    this.$level = null;
+    this.$expanded = false;
   }
 
   set(key, value) {
