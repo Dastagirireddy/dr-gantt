@@ -2,7 +2,6 @@ import { html, LitElement } from "lit-element";
 import { styleMap } from "lit-html/directives/style-map";
 import Styles from "./styles/index.scss";
 import { repeat } from "lit-html/directives/repeat";
-import scaleData from "../demoData/scaleData";
 import tasks from "../demoData/taskData";
 import config from "../demoData/config";
 import taskPositionMap from "../demoData/taskPositionMap";
@@ -22,6 +21,8 @@ import {
 } from "./helpers/ElementManager";
 import getColumns from "./model/columns";
 import Tree from "./model/store/Tree";
+import { getScaleData } from "./helpers/TimelineManager";
+import { configureFormat } from "./helpers/DateManager";
 
 class GanttElement extends LitElement {
   static get styles() {
@@ -93,7 +94,7 @@ class GanttElement extends LitElement {
     this.viewportTasks = [];
     this.columns = getColumns(columns);
     this.taskPositionMap = taskPositionMap;
-    this.scaleData = scaleData;
+    this.scaleData = [];
     this.totalColumnsWidth = this.getTotalColumnsWidth();
     this.tree = new Tree(tasks);
   }
@@ -229,9 +230,10 @@ class GanttElement extends LitElement {
   get timelineBodyTemplate() {
     return html`
       <section
-            style="height: ${this.totalBodyHeight}px"
+            style="height: ${this.totalBodyHeight}px; background-size: 1px ${
+      this.config.rowHeight
+    }px; background-position: left 1px top ${this.config.rowHeight - 1}px"
             class="body-main-container hide-scroll"
-            $
             id="timeline-body"
             @scroll="${this.handleTimelineHorizontalScroll}"
           >
@@ -240,7 +242,12 @@ class GanttElement extends LitElement {
             )}>
               <div
                 class="scroll-area timeline-body"
-                style=${styleMap(this.timelineWidthStyles)}
+                style=${styleMap({
+                  ...this.timelineWidthStyles,
+                  backgroundSize: `${this.bottomScaleWidth}px 1px`,
+                  backgroundPosition: `left ${this.bottomScaleWidth -
+                    1}px top 1px`
+                })}
               >
                 <div class="area__bars timeline-layer">
                   ${repeat(
@@ -260,7 +267,7 @@ class GanttElement extends LitElement {
                           <div
                             class="task__container"
                             style=${styleMap({
-                              height: "24px",
+                              height: `${this.config.barHeight}px`,
                               transform: `translateX(${position.left}px)`,
                               width: `${position.width}px`
                             })}
@@ -338,7 +345,11 @@ class GanttElement extends LitElement {
   }
 
   getTotalBodyHeight() {
-    return this.flatList.length * this.config.rowHeight;
+    const bodyHeight = this.flatList.length * this.config.rowHeight;
+
+    return bodyHeight < this.availableHeight
+      ? this.availableHeight
+      : bodyHeight;
   }
 
   getTotalTimelineWidth() {
@@ -404,7 +415,7 @@ class GanttElement extends LitElement {
     };
   }
 
-  resetViewportTasks() {
+  updateViewportTasks() {
     this.flatList = this.tree.getFlatList();
 
     this.viewportTasks = this.flatList.slice(
@@ -443,8 +454,11 @@ class GanttElement extends LitElement {
       timelineSyncElements[0]
     );
 
+    configureFormat(this.config.dateFormat);
+    this.scaleData = getScaleData(this.config.startDate, this.config.endDate);
+
     // Viewport task list
-    this.resetViewportTasks();
+    this.updateViewportTasks();
 
     // Total width of timeline
     this.totalTimelineWidth = this.getTotalTimelineWidth();

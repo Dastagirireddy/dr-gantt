@@ -55,8 +55,9 @@
   @extend .flex-rows;
   position: relative;
   border-bottom: 1px solid #fafafa;
-  background-color: #f5f5f5;
+  background-color: #fafafa;
   font-weight: bold;
+  overflow: hidden;
   &:last-child {
     border-bottom: none;
     font-weight: normal;
@@ -77,8 +78,6 @@
   background: transparent
     url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><line stroke-width="2" stroke="rgb(238,238,238)" x1="0" y1="0" x2="0" y2="5"></line></svg>')
     50% repeat;
-  background-size: 50px 1px;
-  background-position: left 49px top 1px;
 }
 
 .virtual-scroll {
@@ -115,6 +114,9 @@
   overflow-x: auto;
   overflow-y: hidden;
   position: relative;
+  background: transparent
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><line stroke-width="2" stroke="rgb(238,238,238)" x1="0" y1="0" x2="5" y2="0"></line></svg>')
+    50% repeat;
 }
 
 .body-main-wrapper {
@@ -147,7 +149,7 @@
 .timeline__row {
   position: absolute;
   width: 100%;
-  border-bottom: 1px solid #eeeeee;
+  // border-bottom: 1px solid #eeeeee;
   display: flex;
   align-items: center;
   pointer-events: all;
