@@ -10,7 +10,7 @@
   "main": "dist/bundle.js",
   "scripts": {
     "start": "node server.js",
-    "build": "webpack --watch"
+    "build": "webpack"
   },
   "dependencies": {
     "css-loader": "^0.28.11",
