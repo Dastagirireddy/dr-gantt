@@ -493,7 +493,7 @@ class GanttElement extends LitElement {
       const taskNode = event.detail;
 
       taskNode.$expanded = !taskNode.$expanded;
-      this.resetViewportTasks();
+      this.updateViewportTasks();
     });
   }
 }
