@@ -131,16 +131,16 @@ const getFormattedDate = (date, fr) => {
     .replace(/}/g, "");
 };
 
-const getNextUnit = (date, unit = "day") => {
+const getNextUnit = (date, unit = "day", count = 1) => {
   switch (unit) {
     case "day": {
-      return new Date(date.setDate(date.getDate() + 1));
+      return new Date(date.setDate(date.getDate() + count));
     }
     case "month": {
-      return new Date(date.setMonth(date.getMonth() + 1));
+      return new Date(date.setMonth(date.getMonth() + count));
     }
     case "year": {
-      return new Date(date.setFullYear(date.getFullYear() + 1));
+      return new Date(date.setFullYear(date.getFullYear() + count));
     }
   }
 };
@@ -157,4 +157,4 @@ const getDuration = (start, end, unit = "day") => {
   }
 };
 
-export { configureFormat, getDate, getFormattedDate, getNextUnit };
+export { configureFormat, getDate, getFormattedDate, getNextUnit, getDuration };

@@ -2,9 +2,7 @@ import { html, LitElement } from "lit-element";
 import { styleMap } from "lit-html/directives/style-map";
 import Styles from "./styles/index.scss";
 import { repeat } from "lit-html/directives/repeat";
-import tasks from "../demoData/taskData";
 import config from "../demoData/config";
-import taskPositionMap from "../demoData/taskPositionMap";
 import columns from "../demoData/columns";
 import { getScrollWindow, getEndPosition } from "./helpers/WindowManager";
 import {
@@ -23,6 +21,7 @@ import getColumns from "./model/columns";
 import Tree from "./model/store/Tree";
 import { getScaleData } from "./helpers/TimelineManager";
 import { configureFormat } from "./helpers/DateManager";
+import getTasksAndPositionMap from "../demoData/bigData";
 
 class GanttElement extends LitElement {
   static get styles() {
@@ -93,10 +92,11 @@ class GanttElement extends LitElement {
     this.totalBodyHeight = 0;
     this.viewportTasks = [];
     this.columns = getColumns(columns);
-    this.taskPositionMap = taskPositionMap;
+    this.taskPositionMap = {};
+    //this.taskPositionMap = taskPositionMap;
     this.scaleData = [];
     this.totalColumnsWidth = this.getTotalColumnsWidth();
-    this.tree = new Tree(tasks);
+    this.tree = null;
   }
 
   get gridHeaderTemplate() {
@@ -147,6 +147,7 @@ class GanttElement extends LitElement {
                     class="scale__cell"
                     style="min-width: ${scale.width}px;width: ${scale.width}px; transform: translate(${scale.index *
                       scale.width}px, 0px)"
+                    data-index="${scale.index}"
                   >
                     ${scale.label}
                   </div>
@@ -165,6 +166,7 @@ class GanttElement extends LitElement {
                     style="min-width: ${this.bottomScaleWidth}px;width: ${this
                       .bottomScaleWidth}px; transform: translate(${scale.index *
                       this.bottomScaleWidth}px, 0px)"
+                    data-index="${scale.index}"
                   >
                     ${scale.label}
                   </div>
@@ -390,6 +392,10 @@ class GanttElement extends LitElement {
   }
 
   handleTimelineHorizontalScroll(e) {
+    if (this.scrollLeft === e.target.scrollLeft) {
+      return;
+    }
+
     const topIndices = getScrollWindow({
       oldScroll: this.scrollLeft,
       newScroll: e.target.scrollLeft,
@@ -455,7 +461,12 @@ class GanttElement extends LitElement {
     );
 
     configureFormat(this.config.dateFormat);
-    this.scaleData = getScaleData(this.config.startDate, this.config.endDate);
+    const myData = getTasksAndPositionMap({
+      config: this.config
+    });
+    this.taskPositionMap = myData.taskPositionMap;
+    this.tree = new Tree(myData.taskData);
+    this.scaleData = getScaleData("2019-01-01", "2022-01-01");
 
     // Viewport task list
     this.updateViewportTasks();
@@ -465,6 +476,7 @@ class GanttElement extends LitElement {
 
     // Calculate timescale data
     this.minTopScaleWidth = this.getMinTopScaleWidth();
+    console.log(this.minTopScaleWidth);
     this.viewportScaleData = {
       top: this.scaleData.top.slice(
         0,

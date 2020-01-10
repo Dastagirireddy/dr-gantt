@@ -20,3 +20,4 @@ export const ICON_TYPES = Object.freeze({
   DOT: "dot"
 });
 export const CELL_EXPAND_OR_COLLAPSE = "CELL_EXPAND_OR_COLLAPSE";
+export const TASK_TYPES = Object.freeze(["parent", "task", "milestone"]);

@@ -6,7 +6,7 @@ export default class Node {
     this.parent = null;
     this.$index = null;
     this.$level = null;
-    this.$expanded = false;
+    this.$expanded = true;
   }
 
   set(key, value) {

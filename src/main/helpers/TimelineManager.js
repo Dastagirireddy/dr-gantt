@@ -4,11 +4,11 @@ export const getScaleData = (start, end) => {
   const startDate = getDate(start);
   const endDate = getDate(end).getTime();
   let curDate = startDate;
-  const result = [];
   let prevMonth = "";
   let curMonth = curDate.getMonth();
-  const months = [];
+  const months = {};
   let bottomCounterInTop = 0;
+  let monthsCounter = 0;
   let days = [];
 
   while (curDate.getTime() < endDate) {
@@ -17,10 +17,12 @@ export const getScaleData = (start, end) => {
     if (prevMonth !== curMonth) {
       prevMonth = curMonth;
 
-      months.push({
+      months[`${curDate.getFullYear()} - ${curDate.getMonth()}`] = {
         label: getFormattedDate(curDate, "MMMM, YYYY"),
-        index: months.length
-      });
+        index: monthsCounter
+      };
+
+      monthsCounter++;
 
       bottomCounterInTop = 0;
     }
@@ -32,9 +34,10 @@ export const getScaleData = (start, end) => {
       index: days.length
     });
 
-    curDate = getNextUnit(curDate);
+    months[`${curDate.getFullYear()} - ${curDate.getMonth()}`].width =
+      bottomCounterInTop * 50;
 
-    months[curMonth].width = bottomCounterInTop * 50;
+    curDate = getNextUnit(curDate);
   }
 
   return {
