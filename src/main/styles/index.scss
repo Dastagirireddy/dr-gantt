@@ -51,25 +51,26 @@
 }
 
 .scale {
-  @extend .flex-container;
-  @extend .flex-rows;
   position: relative;
   border-bottom: 1px solid #fafafa;
   background-color: #fafafa;
   font-weight: bold;
-  overflow: hidden;
+  display: block;
   &:last-child {
     border-bottom: none;
     font-weight: normal;
     background-color: white;
   }
   &__cell {
-    height: 100%;
+    height: inherit;
     border-right: 1px solid #eeeeee;
-    @extend .flex-container;
-    @extend .align-items-center;
-    @extend .justify-content-center;
     position: absolute;
+    display: table-cell;
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0 3px;
   }
 }
 

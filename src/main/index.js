@@ -69,7 +69,7 @@ class GanttElement extends LitElement {
       totalBodyHeight: {
         type: Number
       },
-      minTopScaleWidth: {
+      maxTopScaleWidth: {
         type: Number
       }
     };
@@ -124,6 +124,46 @@ class GanttElement extends LitElement {
     `;
   }
 
+  get topScaleTemplate() {
+    const scaleHeight = this.config.headerHeight / 2;
+    let awayFromYAxix = 0;
+
+    if (this.viewportScaleData.top.length > 0) {
+      const index = this.viewportScaleData.top[0].index;
+
+      for (let idx = 0; idx < index; idx++) {
+        awayFromYAxix += this.scaleData.top[idx].width;
+      }
+    }
+
+    return html`
+      <div
+        class="scale"
+        style="height: ${scaleHeight}px; line-height: ${scaleHeight}px"
+      >
+        ${repeat(
+          this.viewportScaleData.top,
+          item => item.index,
+          scale => {
+            const template = html`
+              <div
+                class="scale__cell"
+                style="min-width: ${scale.width}px;width: ${scale.width}px; transform: translate(${awayFromYAxix}px, 0px);"
+                data-index="${scale.index}"
+              >
+                ${scale.label}
+              </div>
+            `;
+
+            awayFromYAxix += scale.width;
+
+            return template;
+          }
+        )}
+      </div>
+    `;
+  }
+
   get timelineHeaderTemplate() {
     const scaleHeight = this.config.headerHeight / 2;
 
@@ -137,25 +177,11 @@ class GanttElement extends LitElement {
           class="scroll-area scale-area"
           style=${styleMap(this.timelineWidthStyles)}
         >
-          <div class="scale" style="height: ${scaleHeight}px">
-            ${repeat(
-              this.viewportScaleData.top,
-              item => item.index,
-              scale => {
-                return html`
-                  <div
-                    class="scale__cell"
-                    style="min-width: ${scale.width}px;width: ${scale.width}px; transform: translate(${scale.index *
-                      scale.width}px, 0px)"
-                    data-index="${scale.index}"
-                  >
-                    ${scale.label}
-                  </div>
-                `;
-              }
-            )}
-          </div>
-          <div class="scale" style="height: ${scaleHeight}px">
+          ${this.topScaleTemplate}
+          <div
+            class="scale"
+            style="height: ${scaleHeight}px; line-height: ${scaleHeight}px"
+          >
             ${repeat(
               this.viewportScaleData.bottom,
               item => item.index,
@@ -257,6 +283,7 @@ class GanttElement extends LitElement {
                     item => item.get("id"),
                     taskNode => {
                       const position = this.taskPositionMap[taskNode.get("id")];
+                      const isMilestone = taskNode.get("type") === "milestone";
 
                       return html`
                         <div
@@ -271,16 +298,18 @@ class GanttElement extends LitElement {
                             style=${styleMap({
                               height: `${this.config.barHeight}px`,
                               transform: `translateX(${position.left}px)`,
-                              width: `${position.width}px`
+                              width: `${
+                                isMilestone
+                                  ? this.config.barHeight
+                                  : position.width
+                              }px`
                             })}
                           >
                             <div class="task__wrapper">
                               <div
                                 class="task${taskNode.get("type") === "parent"
                                   ? " task__parent"
-                                  : ""}${taskNode.get("type") === "milestone"
-                                  ? " task__milestone"
-                                  : ""}"
+                                  : ""}${isMilestone ? " task__milestone" : ""}"
                               >
                                 <div
                                   class="task__progress"
@@ -358,24 +387,28 @@ class GanttElement extends LitElement {
     return this.scaleData.bottom.length * this.bottomScaleWidth;
   }
 
-  getMinTopScaleWidth() {
-    let min = Infinity;
+  getMaxTopScaleWidth() {
+    const top = this.scaleData.top;
+    let max = -Infinity;
 
-    this.scaleData.top.forEach(top => {
-      if (top.width < min) {
-        min = top.width;
+    for (let idx = 0; idx < top.length; idx++) {
+      if (top[idx].width > max) {
+        max = top[idx].width;
       }
-    });
+    }
 
-    return min;
+    return max;
   }
 
   getTotalColumnsWidth() {
-    return this.columns.reduce((sum, column) => {
-      sum += column.width;
+    const length = this.columns.length;
+    let sum = 0;
 
-      return sum;
-    }, 0);
+    for (let idx = 0; idx < length; idx++) {
+      sum += this.columns[idx].width;
+    }
+
+    return sum;
   }
 
   handleVerticalScroll(e) {
@@ -401,7 +434,7 @@ class GanttElement extends LitElement {
       newScroll: e.target.scrollLeft,
       visibleArea: this.availableWidth,
       totalCount: this.scaleData.top.length,
-      unitWidth: this.minTopScaleWidth
+      unitWidth: this.maxTopScaleWidth
     });
     const bottomIndices = getScrollWindow({
       oldScroll: this.scrollLeft,
@@ -475,15 +508,14 @@ class GanttElement extends LitElement {
     this.totalTimelineWidth = this.getTotalTimelineWidth();
 
     // Calculate timescale data
-    this.minTopScaleWidth = this.getMinTopScaleWidth();
-    console.log(this.minTopScaleWidth);
+    this.maxTopScaleWidth = this.getMaxTopScaleWidth();
     this.viewportScaleData = {
       top: this.scaleData.top.slice(
         0,
         getEndPosition({
           visibleArea: this.availableWidth,
           newScroll: this.scrollLeft,
-          unitWidth: this.minTopScaleWidth
+          unitWidth: this.maxTopScaleWidth
         }) + OVERSCAN_COUNT
       ),
       bottom: this.scaleData.bottom.slice(
